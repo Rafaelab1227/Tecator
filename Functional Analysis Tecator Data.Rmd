@@ -1,0 +1,725 @@
+---
+title: "Functional Data Analysis Tecator Data"
+author: "Rafaela Becerra"
+output: 
+  html_document:
+    number_sections: yes
+    df_print: kable
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Tecator Data
+## Load packages and data
+
+```{r message=FALSE}
+library(fda)
+library(fda.usc)
+
+```
+
+```{r}
+data(tecator)
+data <- tecator$absorp.fdata$data
+data <- t(data)
+fat <- tecator$y$Fat
+```
+
+## About it
+```{r}
+help(tecator)
+names(tecator)
+names(tecator$absorp.fdata)
+names(tecator$y)
+class(tecator$absorp.fdata)
+class(tecator$y)
+dim(tecator$absorp.fdata)
+dim(tecator$y)
+```
+
+The **tecator** data contains two lists the **absorp.fdata** that contains 215 samples of of finely chopped pure meat and for each 100 measures based on the channel spectrum of absorbances in the  wavelength range 850 to 1050 mm. The list **y** contains the measures of moisture (water), fat and protein contents for each of the 215 samples. The absorbance is -log10 of the transmittance 
+measured by the spectrometer and the three contents, measured in percent, are determined by analytic chemistry.
+
+
+## Smooth data with OLS
+
+```{r}
+b.basis.1 <- create.bspline.basis(rangeval=c(0,100),nbasis=5)
+b.basis.2 <- create.bspline.basis(rangeval=c(0,100),nbasis=7)
+b.basis.3 <- create.bspline.basis(rangeval=c(0,100),nbasis=9)
+b.basis.4 <- create.bspline.basis(rangeval=c(0,100),nbasis=11)
+```
+
+
+```{r }
+smooth.data.1 <- smooth.basis(argvals=1:100,y=data,fdParobj=b.basis.1)
+smooth.data.2 <- smooth.basis(argvals=1:100,y=data,fdParobj=b.basis.2)
+smooth.data.3 <- smooth.basis(argvals=1:100,y=data,fdParobj=b.basis.3)
+smooth.data.4 <- smooth.basis(argvals=1:100,y=data,fdParobj=b.basis.4)
+```
+
+
+```{r}
+plot(smooth.data.1,
+     lty=1,
+     lwd=1,
+     col="darkorange2",
+     main="Smoothing with OLS with 5 Spline basis functions",
+     xlab= "Wavelength (mm)",
+     ylab="Absorbances")
+```
+
+```{r}
+plot(smooth.data.2,
+     lty=1,
+     lwd=1,
+     col="darkorange2",
+     main="Smoothing with OLS with 7 Spline basis functions",
+     xlab= "Wavelength (mm)",
+     ylab="Absorbances")
+```
+```{r}
+plot(smooth.data.3,
+    lty=1,
+     lwd=1,
+     col="darkorange2",
+     main="Smoothing with OLS with 9 Spline basis functions",
+     xlab= "Wavelength (mm)",
+     ylab="Absorbances")
+```
+
+```{r}
+plot(smooth.data.4,
+     lty=1,
+     lwd=1,
+     col="darkorange2",
+     main="Smoothing with OLS with 11 Spline basis functions",
+     xlab= "Wavelength (mm)",
+     ylab="Absorbances")
+```
+
+As Fourier basis did not work for this data set, we are consider a more flexible mathematical tool which is spline basis. 
+
+First, we considered four different number of basis functions which included larger numbers in order to see to which one reacted better the data in order to performed the smoothing; by taking K=21, 41, 61 and 81, we identified that the graph presented less ups and downs with K=21, then we considered four smaller number of Ks, taking the odd small values of 5, 7, 9, and 11. 
+
+As we can see the plots above are similar, but if we enlarge the images we can see some differences among them, especially in the 40 and 60 interval. We can see that K=11 presents a lower valley in this interval that it is not capture by any of the other Ks, additionally, it presents a higher peak next to the 40 measure that for the rest is presented as a lower value making it more rough. 
+
+
+```{r }
+print(paste('GCV for the first option (5 basis) is: ',mean(smooth.data.1$gcv)))
+print(paste('GCV for the second option (7 basis) is: ',mean(smooth.data.2$gcv)))
+print(paste('GCV for the third option (9 basis)is: ',mean(smooth.data.3$gcv)))
+print(paste('GCV for the fourth option (11 basis)is: ',mean(smooth.data.4$gcv)))
+
+```
+
+By taking a look at the results of the mean GCV criterion values we can see that the lower value is 9 Fourier Basis. As the K value increases we see that the GCV decreases, consequently, as we did not get major differences in the curves we could take 9 or 11, being this last value the one pointed to be the optimal K that reduces the GCV value.
+
+Next we present the smoothed data with the 9 fourier basis,as we see in the graph above, the curves are really smooth and capture the form of the data points. 
+
+```{r }
+plot(smooth.data.4,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Smoothed meat absorbance with OLS and"," 9 Spline basis"),
+     xlab= "Wavelength (mm)",
+     ylab="Absorbances")
+```
+ 
+Also if we compare this curves to the ones we got with the simple linear interpolation, we can see that these are smoother curves and present less peaks with a triangular form so are pretty less rough, especially in the 20 to 40 interval.
+
+```{r }
+matplot(1:100,
+        data,
+        type="l",lty=1,col="deepskyblue2", lwd=2,
+        xlab="Wavelength (mm)",
+        ylab="Absorbances",
+        main="Smoothed meat absorbance with interpolation method")
+```
+
+Recall that the absorbance is -log10 of the transmittance measured by the spectrometer. Next, we plot the average for each curve. As seen, is presented as a skweed to the right distribution that it is almost normal. Moreover, through the boxplot of these values, we can see that there might be some outliers or samples that achieve higher values of absorbance far from the normal behaviour which will be the ones that are dragging the distribution to the right. Also we see that the mean is above 3, with a value of exactly 3.19 and the median of 3.1.
+
+```{r}
+data.mean <- colMeans(data)
+par(mfrow=c(1,1))
+hist(data.mean,
+     col="deepskyblue2",
+     xlab="Absorbance",
+     main="Histogram of average absorbance (base 10 logarithm)")
+
+boxplot(data.mean,
+        col="deepskyblue2",
+        main="Boxplot of average absorbance (base 10 logarithm)")
+```
+
+Now, we are presenting the same analysis for the fat absorbance data which is presented as a scalar number expressed in percentage values. As we can see it also presents a somehow normal distribution that it is skeweed to the right with a mean if 18%, a maximum of 49.1% and a minimum register of 0.9%.
+
+```{r}
+par(mfrow=c(1,1))
+hist(fat,
+     col="deepskyblue2",
+     xlab="Absorbance",
+     main="Histogram of fat content of meat samples")
+
+boxplot(fat,
+        col="deepskyblue2",
+        main="Boxplot of fat content of meat samples")
+```
+
+We are facing a Scalar-on function regression. The number of scalar responses and functional regressors is 215 samples and the observation points of the i-th regressor are 100 points.
+
+The model use is denoted as:
+$$r_{i}=b_{0}+\left\langle\widehat{x}_{i}, \beta\right\rangle+\varepsilon_{i} \quad i=1, \ldots, n$$
+Where:
+
+$r_{i}$ are the observed responses,
+
+$\widehat{x}_{i}$ the smoothed regressors, and
+
+$\varepsilon_{i}$ the unobserved errors.
+
+Also,
+$$\widehat{x}_{i}(t)=\sum_{k=1}^{K} \widehat{c}_{i k} e_{k}(t) \quad i=1, \ldots, n \quad t \in[a, b]$$
+Where, 
+
+$\widehat{c}_{i k}$ are the estimates by least squares, and
+$e_{1}, e_{2}, \ldots$  be a basis in $L^{2}[a, b]$
+
+## Estimation through a basis expansion.
+
+The original model will be rewrited as:
+
+$$r_{i}=b_{0}+z_{i 1} b_{1}+\cdots+z_{i k} b_{k}+\varepsilon_{i} \quad i=1, \ldots, n$$
+Where:
+
+$$z_{i l}=\sum_{k=1}^{K} \widehat{c}_{i k}\left\langle e_{k}, e_{l}\right\rangle, \text { for } i=1, \ldots, n \text { and } l=1, \ldots, K$$
+Which in matrix form can be denoted as:
+
+$$r=Z b+E$$
+Where, $b_{0}, b_{1}, \dots, b_{k}$ will be estimate by minimizing SSE given by:
+
+$$\operatorname{SSE}(E)=(r-Z b)^{\prime}(r-Z b)=E^{\prime} E$$
+Now, with the four basis that we defined in the previous point we will perfom the estimation of the scalar-on-function regression model trough a basis expansion.
+
+We will start by defining functional data object containing the smooth of the absorbances, the data to be given to the fitting, and the basis for the intercept and the functional slope $\beta$ for each one of the four $K$.
+
+Spline basis 5
+
+```{r}
+# Data object of the smooth absorbance
+tempfd.1 <- smooth.data.1$fd
+
+# Data to be given to the fitting
+templist.1 <- vector("list",2)
+templist.1[[1]] <- rep(1,215)
+templist.1[[2]] <- tempfd.1
+
+# Basis for the intercept and the functional slope
+beta0.basis.1 <- create.constant.basis(rangeval=c(0,100))
+beta.basis.1 <- create.bspline.basis(rangeval=c(0,100),nbasis=5)
+betalist.1 <- vector("list",2)
+betalist.1[[1]] <- beta0.basis.1
+betalist.1[[2]] <- beta.basis.1
+```
+
+Spline basis 7
+
+```{r}
+# Data object of the smooth absorbance
+tempfd.2 <- smooth.data.2$fd
+
+# Data to be given to the fitting
+templist.2 <- vector("list",2)
+templist.2[[1]] <- rep(1,215)
+templist.2[[2]] <- tempfd.2
+
+# Basis for the intercept and the functional slope
+beta0.basis.2 <- create.constant.basis(rangeval=c(0,100))
+beta.basis.2 <- create.bspline.basis(rangeval=c(0,100),nbasis=7)
+betalist.2 <- vector("list",2)
+betalist.2[[1]] <- beta0.basis.2
+betalist.2[[2]] <- beta.basis.2
+```
+
+Spline basis 9
+
+```{r}
+# Data object of the smooth absorbance
+tempfd.3 <- smooth.data.3$fd
+
+# Data to be given to the fitting
+templist.3 <- vector("list",2)
+templist.3[[1]] <- rep(1,215)
+templist.3[[2]] <- tempfd.3
+
+# Basis for the intercept and the functional slope
+beta0.basis.3 <- create.constant.basis(rangeval=c(0,100))
+beta.basis.3 <- create.bspline.basis(rangeval=c(0,100),nbasis=9)
+betalist.3 <- vector("list",2)
+betalist.3[[1]] <- beta0.basis.3
+betalist.3[[2]] <- beta.basis.3
+```
+
+Spline basis 11
+
+```{r}
+# Data object of the smooth absorbance
+tempfd.4 <- smooth.data.4$fd
+
+# Data to be given to the fitting
+templist.4 <- vector("list",2)
+templist.4[[1]] <- rep(1,215)
+templist.4[[2]] <- tempfd.4
+
+# Basis for the intercept and the functional slope
+beta0.basis.4 <- create.constant.basis(rangeval=c(0,100))
+beta.basis.4 <- create.bspline.basis(rangeval=c(0,100),nbasis=11)
+betalist.4 <- vector("list",2)
+betalist.4[[1]] <- beta0.basis.4
+betalist.4[[2]] <- beta.basis.4
+```
+
+Next we are carring out the fitting of the regression for the four values of $K$:
+
+```{r}
+fit.data.mean.abmeat.ols.1 <- fRegress(fat,templist.1,betalist.1)
+fit.data.mean.abmeat.ols.2 <- fRegress(fat,templist.2,betalist.2)
+fit.data.mean.abmeat.ols.3 <- fRegress(fat,templist.3,betalist.3)
+fit.data.mean.abmeat.ols.4 <- fRegress(fat,templist.4,betalist.4)
+```
+
+As we can see in the plots below given by the estimation of the intercept and the functional slope of the model, as the value of K gets larger the curves of the estimate functional slope of the model presents more ups and downs. Moreover, we can see that the difference between 9 and 11 is not as marked as both curves compare to 5 or 7.
+
+```{r}
+betaestlist.1 <- fit.data.mean.abmeat.ols.1$betaestlist
+betaestlist.2 <- fit.data.mean.abmeat.ols.2$betaestlist
+betaestlist.3 <- fit.data.mean.abmeat.ols.3$betaestlist
+betaestlist.4 <- fit.data.mean.abmeat.ols.4$betaestlist
+```
+
+```{r}
+par(mfrow=c(2,2))
+
+plot(betaestlist.1[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Estimate of functional slope with OLS", "and 5 Spline basis"),
+     xlab="Wavelength (mm)",
+     ylab="")
+
+plot(betaestlist.2[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Estimate of functional slope with OLS", "and 7 Spline basis"),
+     xlab="Wavelength (mm)",
+     ylab="")
+
+plot(betaestlist.3[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Estimate of functional slope with OLS", "and 9 Spline basis"),
+     xlab="Wavelength (mm)",
+     ylab="")
+
+plot(betaestlist.4[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Estimate of functional slope with OLS", "and 11 Spline basis"),
+     xlab="Wavelength (mm)",
+     ylab="")
+
+```
+
+The estimates of the intercept are presented as lower values close to zero, for the K=11 we see that this is the smallest value of all. The intercept will give the average amount of fat without the absorbance, it can be expressed as the mean expected fat in the meat by default.
+
+```{r}
+coef(betaestlist.1[[1]])
+coef(betaestlist.2[[1]])
+coef(betaestlist.3[[1]])
+coef(betaestlist.4[[1]])
+```
+
+We are obtaining the residual variance of the four fittings. As we can see, these values are quite small, this can be related to the fact that the data was smooth with few basis to prevent overfitting. The smallest is the variance of K=7, followed by K=9, K=5 and K=11. As we can see in the plots presented below, there are some problems in the residuals. The least appropiate will be K=11, considering that there are not equally distributed along the x-axis, additionally, we can se some trends in the form of the data.The residual variance of K=5 appears to have less problems as it is almost equally distributed. K=7 and K=9 present some points that may be distortioning the data as they are presented with higher variances. Moreover, 7 appears to be better adjusted than K=9.
+
+
+```{r}
+res.ols.1 <- residuals(fit.data.mean.abmeat.ols.1)
+res.ols.2 <- residuals(fit.data.mean.abmeat.ols.2)
+res.ols.3 <- residuals(fit.data.mean.abmeat.ols.3)
+res.ols.4 <- residuals(fit.data.mean.abmeat.ols.4)
+res.var.ols.1 <- sum(res.ols.1^2)/(215-5-1)
+res.var.ols.1
+res.var.ols.2 <- sum(res.ols.2^2)/(215-7-1)
+res.var.ols.2
+res.var.ols.3 <- sum(res.ols.3^2)/(215-9-1)
+res.var.ols.3
+res.var.ols.4 <- sum(res.ols.4^2)/(215-11-1)
+res.var.ols.4
+```
+
+```{r}
+par(mfrow=c(2,2))
+
+plot(1:215,res.ols.1,
+     pch=19,col="deepskyblue2",
+     main="Residuals with OLS and 5 Spline basis",xlab="Samples",ylab="")
+abline(h=0)
+
+plot(1:215,res.ols.2,
+     pch=19,col="deepskyblue2",
+     main="Residuals with OLS and 7 Spline basis",xlab="Samples",ylab="")
+abline(h=0)
+
+plot(1:215,res.ols.3,
+     pch=19,col="deepskyblue2",
+     main="Residuals with OLS and 9 Spline basis",xlab="Samples",ylab="")
+abline(h=0)
+
+plot(1:215,res.ols.4,
+     pch=19,col="deepskyblue2",
+     main="Residuals with OLS and 11 Spline basis",xlab="Samples",ylab="")
+abline(h=0)
+```
+
+We present the predicted values of the four fittings in the objects through a comparisson among their values in terms of correlation. As seen, the estimates of the functional slope $\beta$ are really similar between  K=7, K=9 and K=11, actually, the coefficient of correlation are around 0.99 for these three. Moreover, the K=5 is the one that presented the most disperse data when comparing to the rest.
+
+
+```{r}
+pred.ols.1 <- fit.data.mean.abmeat.ols.1$yhatfdobj
+pred.ols.2 <- fit.data.mean.abmeat.ols.2$yhatfdobj
+pred.ols.3 <- fit.data.mean.abmeat.ols.3$yhatfdobj
+pred.ols.4 <- fit.data.mean.abmeat.ols.4$yhatfdobj
+pred.ols <- cbind(pred.ols.1,pred.ols.2,pred.ols.3,pred.ols.4)
+colnames(pred.ols) <- c("K=5","K=7","K=9","K=11")
+pairs(pred.ols,pch=19,col="deepskyblue2")
+R.pred.ols <- cor(pred.ols)
+R.pred.ols
+library(corrplot)
+corrplot(R.pred.ols,is.corr=TRUE)
+```
+
+Next, we are calculating the coefficient of determination for the four values of $K$ which will be given by:
+
+$$R^{2}=\frac{E S S}{T S S}$$
+
+Where the explained sum of squares will be given by:
+
+$$E S S=\sum_{i=1}^{n}\left(\widehat{r}_{i}-\bar{r}\right)^{2}$$
+
+And, the total sum of squares will be equal to:
+$$T S S=\sum_{i=1}^{n}\left(r_{i}-\bar{r}\right)^{2}$$
+
+The coefficient of determination will explain how well the absorbance measures will explain linearly the percentage of fat in the samples of meat. In this case, we have that all are close to 1, then it actually can be consider that almost all of the content of fat can be explained by the absorbance of the meat. The adjusted R-squared compensates for the addition of variables and only increases if the new predictor enhances the model above what would be obtained by probability, consequently, this measure will be more accurate, and as seen the values presented are also high and increase as the basis value is higher. 
+
+
+```{r}
+ESS.1 <- sum((pred.ols.1 - mean(fat))^2)
+ESS.2 <- sum((pred.ols.2 - mean(fat))^2)
+ESS.3 <- sum((pred.ols.3 - mean(fat))^2)
+ESS.4 <- sum((pred.ols.4 - mean(fat))^2)
+TSS <- sum((fat - mean(fat))^2)
+R2.1 <- ESS.1 / TSS
+R2.1
+R2.2 <- ESS.2 / TSS
+R2.2
+R2.3 <- ESS.3 / TSS
+R2.3
+R2.4 <- ESS.4 / TSS
+R2.4
+R2.adj.1 <- 1 - (1 - R2.1) * (215 - 1) / (215 - 15 - 1)
+R2.adj.1
+R2.adj.2 <- 1 - (1 - R2.2) * (215 - 1) / (215 - 17 - 1)
+R2.adj.2
+R2.adj.3 <- 1 - (1 - R2.3) * (215 - 1) / (215 - 19 - 1)
+R2.adj.3
+R2.adj.4 <- 1 - (1 - R2.4) * (215 - 1) / (215 - 21 - 1)
+R2.adj.4
+```
+
+Next we compute the value of the GCV for the four fittings. In this case, K=7 is the one with smaller GCV, followed by K=9, K=5 and lastly K=11. After this analysis it can be said that the best choice among the four values of $K$ considered is K=7, and the worst K=11 considering also that we get that the coefficient of determination is over 100.
+
+```{r}
+fit.data.mean.abmeat.ols.1$gcv
+fit.data.mean.abmeat.ols.2$gcv
+fit.data.mean.abmeat.ols.3$gcv
+fit.data.mean.abmeat.ols.4$gcv
+```
+
+Therefore, by the fitting of the model and by obtaining the coefficient of determination we can say that in fact, the absorbance of the data will explain the percentage of fat of it. The final model given by K=7 shows a intercept of 0.16, which means that this is the average percentage that the meat is estimated to have without absorbance. 
+
+After generating the estimate of the functional slope of the model, one can define the confidence bands of the estimate. We will use a 95% confidence interval assuming that the errors are independent and identically distributed, given by:
+
+$$\left.\left.\sum_{l=1}^{K}\left(\widehat{b}_{l} \pm 1.96 s . \widehat{e .\left(\widehat{b}_{l}\right.}\right)\right) e_{l}(t)=\widehat{\beta}(t) \pm 1.96 \sum_{l=1}^{K} s . \widehat{e .\left(\widehat{b}_{l}\right.}\right) e_{l}(t)$$
+
+
+```{r}
+Sigma.E <- res.var.ols.2 * diag(215)
+y2cMap <- smooth.data.2$y2cMap
+fit.data.mean.abmeat <- fRegress.stderr(fit.data.mean.abmeat.ols.2,y2cMap,Sigma.E)
+se.beta.est <- fit.data.mean.abmeat$betastderrlist[[2]]
+
+plot(betaestlist.2[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main="Estimate of beta with OLS (7 Spline basis) and confidence bands",
+     xlab="Wavelength (mm)",ylab="")
+
+lines(betaestlist.2[[2]]$fd-1.96*se.beta.est,lty=1,lwd=2,col="orange2")
+lines(betaestlist.2[[2]]$fd+1.96*se.beta.est,lty=1,lwd=2,col="orange2")
+```
+
+## Estimation with a roughness penalty.
+
+Next, we will use a roughness penalty so that the estimator of beta is not so sensible to the choice
+of K.
+
+Now, we will estimate $b_{0}, b_{1}, \dots, b_{k}$ by minimizing the penalized sum of squares given by:
+
+$$\operatorname{PSSE}_{\lambda}(E)=(E-Z b)^{\prime}(E-Z b)+\lambda P E N_{2}(\beta)$$
+
+We will fixed $K=7$ considering the results from the previous section.
+
+The parameter $\lambda$ that reflects the penalization will be adress using the GCV criterion. 
+
+First we select a $\lambda$ sequence considering a large amount of very distant possible values:
+```{r }
+lambdas <- 10^(seq(-10,10,by=1))
+lambdas
+```
+
+Length of sequence:
+```{r }
+l.lambdas <- length(lambdas)
+l.lambdas
+```
+
+Generation of GCV values for each $\lambda$:
+
+```{r }
+gcv.lambdas <- vector(mode="numeric",length=l.lambdas)
+
+for (i in 1:l.lambdas){
+  betafdPar.2 <- fdPar(fdobj=beta.basis.2,Lfdobj=2,lambda=lambdas[i])
+  betalist.2[[2]] <- betafdPar.2  
+  fit.data.mean.abmeat.pen.2 <- fRegress(fat,templist.2,betalist.2)
+  gcv.lambdas[i] <- fit.data.mean.abmeat.pen.2$gcv
+}  
+plot(1:l.lambdas,
+     gcv.lambdas,
+     pch=19,col="deepskyblue2",
+     main="GCV criterion for lambdas",
+     xlab="Lambda components",
+     ylab="Value of GCV")
+
+print(paste("The minimum value of GCV corresponds to lambda: ",
+            lambdas[which(gcv.lambdas==min(gcv.lambdas))]))
+```
+
+```{r}
+lambdas[which.min(gcv.lambdas)]
+```
+Since the minimum value of GVC was generated with $\lambda$ 1 we can extend the sequence around 0 to 1 with a step of the sequence of 0.001.
+
+```{r }
+lambdas <- seq(0,1,by=0.001)
+```
+Length of sequence:
+```{r }
+l.lambdas <- length(lambdas)
+l.lambdas
+```
+
+```{r }
+gcv.lambdas <- vector(mode="numeric",length=l.lambdas)
+
+for (i in 1:l.lambdas){
+  betafdPar.2 <- fdPar(fdobj=beta.basis.2,Lfdobj=2,lambda=lambdas[i])
+  betalist.2[[2]] <- betafdPar.2  
+  fit.data.mean.abmeat.pen.2 <- fRegress(fat,templist.2,betalist.2)
+  gcv.lambdas[i] <- fit.data.mean.abmeat.pen.2$gcv
+}  
+plot(1:l.lambdas,
+     gcv.lambdas,
+     pch=19,col="deepskyblue2",
+     main="GCV criterion for lambdas",
+     xlab="Lambda components",
+     ylab="Value of GCV")
+
+print(paste("The minimum value of GCV corresponds to lambda: ",
+            lambdas[which(gcv.lambdas==min(gcv.lambdas))]))
+```
+
+The 0.955 specifies the emphasis of the penalization term relatively to the sum of squares residuals. Next, we perform the fitting of the model with this penalization included.
+
+```{r}
+betafdPar.2 <- fdPar(fdobj=beta.basis.2,Lfdobj=2,lambda=lambdas[which.min(gcv.lambdas)])
+betalist.2[[2]] <- betafdPar.2   
+fit.log.prec.abmeat.pen.2 <- fRegress(fat,templist.2,betalist.2)
+betaestlist.pen.2 <- fit.log.prec.abmeat.pen.2$betaestlist
+plot(betaestlist.pen.2[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main="Estimate of functional slope with roughness penalty and 7 Spline basis",
+     xlab="Wavelength (mm)",ylab="")
+```
+
+The estimate of the intercept with the penalization is similar than the one without it. Recall that in the last section the intercept estimated laid in 0.1608075, now the coefficient is equal to 0.1672084.
+
+```{r}
+coef(betaestlist.pen.2[[1]])
+```
+
+On the other hand, the residual variance of the fitting in the estimation by least squares presented a value of 10.07138, now, by including the penalization it can be seen that the difference is not considerable at all. As we can see in the residuals plot also appears inmutable to the penalization. As same as before, we can say that there might be some problems with the residuals because some trends can be identify by more or less this K was actually not presenting as much problems as K=11 or higher.
+
+```{r}
+res.pen.2 <- residuals(fit.data.mean.abmeat.pen.2)
+res.var.pen.2 <- sum(res.pen.2^2)/(215-7-1)
+res.var.pen.2
+plot(1:215,res.pen.2,
+     pch=19,col="deepskyblue2",
+     main="Residuals with roughness penalty and 7 Spline basis",xlab="Wavelength (mm)",
+     ylab="")
+abline(h=0)
+```
+
+With the predicted values we are calculating the coefficient of determination and the adjusted coefficient of determination, when comparing to the previous method, we can see that the $R^2$ is now smaller with a value of 0.9417842, also the adjusted $R^2$ is lower, recall that for the OLS it laid in 0.9401616, now it reaches just a value of 0.9398155. Furthermore, we can say that it is a high value considering that the 94% of the fat contained in the meat can be explained by the absorbance data.
+
+
+```{r}
+pred.pen.2 <- fit.log.prec.abmeat.pen.2$yhatfdobj
+
+plot(pred.ols.2,pred.pen.2,
+     pch=19,col="deepskyblue2",
+     main="Residuals OLS vs Penalty",
+     xlab="Residuals OLS",
+     ylab="Residuals Roughness penalty")
+
+ESS.pen.2 <- sum((pred.pen.2 - mean(fat))^2)
+R2.pen.2 <- ESS.pen.2 / TSS
+R2.pen.2
+R2.adj.pen.2 <- 1 - (1 - R2.pen.2) * (215 - 1) / (215 - 7 - 1)
+R2.adj.pen.2
+```
+
+The same as before, we define a confidence band of 95% for the estimates. As we can see the results are quite related to the ones obtained under basis expansion.
+
+```{r}
+Sigma.E <- res.var.pen.2 * diag(215)
+fit.log.prec.abmeat.pen.2.stderr <- fRegress.stderr(fit.log.prec.abmeat.pen.2,y2cMap,Sigma.E)
+se.beta.est.pen <- fit.log.prec.abmeat.pen.2.stderr$betastderrlist[[2]]
+
+plot(betaestlist.pen.2[[2]]$fd,
+     lty=1,lwd=2,col="deepskyblue2",
+     main=c("Estimate of beta with roughness penalty (7 Spline basis)"," and confidence bands"),
+     xlab="Wavelength (mm)",ylab="")
+
+lines(betaestlist.pen.2[[2]]$fd-1.96*se.beta.est.pen,lty=1,lwd=2,col="orange2")
+lines(betaestlist.pen.2[[2]]$fd+1.96*se.beta.est.pen,lty=1,lwd=2,col="orange2")
+```
+
+
+## Regression on functional principal components.
+
+Now we will adress the regression problem through functional principal components. The idea will be to expand both the smoothed functions and the functional slope in terms of the functional principal components of the data. 
+
+For this, we will center the responses and regressors around the mean, then the original model can be express as:
+
+$$r_{i}-\bar{r}=\left\langle\widehat{x}_{i}-\widehat{\mu}, \beta\right\rangle+\varepsilon_{i} \quad i=1, \ldots, n$$
+And by taking into account the Karhunen-Loeve expansion:
+
+$$\widehat{x}_{i}(t)=\widehat{\mu}(t)+\sum_{k=1}^{\infty} \widehat{s}_{i k} \widehat{v}_{k}(t)$$
+And, that:
+
+$$\beta(t)=\sum_{l=1}^{\infty} b_{l} \widehat{v}_{l}(t)$$
+We have that:
+$$\left\langle\widehat{x}_{i}-\widehat{\mu}, \beta\right\rangle=\left\langle\sum_{k=1}^{\infty} \widehat{s}_{i k} \widehat{v}_{k}, \sum_{l=1}^{\infty} b_{l} \widehat{v}_{l}\right\rangle=\sum_{l=1}^{\infty} \widehat{s}_{i j} b_{l}$$
+Then, we can rewrite the model as:
+
+$$r_{i}-\bar{r}=\sum_{l=1}^{L} \widehat{s}_{i j} b_{l}+\varepsilon_{i} \quad i=1, \ldots, n$$
+
+
+The same as the case before, we will fix K=7 considering the results from section 1. Then, the maximum number of FPCs will be as well 7. We have plotted these 7 FPCSs one to another, as we can see, the first FPC plotted against the second gives some interesting results about the grouping of the data, considering that there are some outliers that laid in the extremes of the plot. By plottling the first against the rest, we can see that there are some points that are separated in this FPC that are located to the right extreme and that are far from the normal behavior of the rest. Moreover, by plotting the second against all, we can see that this separates the data into three groups, one on the center that contains most of the points and two to the sides, that can be seen as outliers. Also, we can identify the same separation given by the sixth FPC. Furthermore, the third and fourth are quite similar as for the fifth and the seventh FPCS. 
+
+```{r}
+b.basis.2 <- create.fourier.basis(rangeval=c(0,100),nbasis=7)
+smooth.data.2 <- smooth.basis(argvals=1:100,y=data,fdParobj=b.basis.2)
+```
+
+```{r fpcs2}
+pcs.abmeat <- pca.fd(smooth.data.2$fd,nharm=7,harmfdPar=fdPar(smooth.data.2$fd))
+fpcs.abmeat <- pcs.abmeat$harmonics
+fpcss.abmeat <- pcs.abmeat$scores
+colnames(fpcss.abmeat) <- c("FPCSs1","FPCSs2","FPCSs3","FPCSs4","FPCSs5","FPCSs6","FPCSs7")
+pairs(fpcss.abmeat,col="deepskyblue2",pch=19)
+```
+
+For every value of L we will estimate the $b_1,b_2,\ldots$ by taking into account the centered data as presented of the formula above, for estimating the functional slope of the model denoted by $\beta$. Considering that the FPCSs are uncorrelated we will construct the estimate of the functional slope of the model starting with the one for $L=1$ and then adding the new information given a new FPCSs. We could take several criterium to define the selection of L, but we will use just GCV and BIC. As we can see, both suggest that the optimal L lays on 6 or 7. The values for both are quite similar. The GCV returns a value for L=6 and L=7 of  9.691902 and 9.547215, pointing that L should be set to 7. Conversely, BIC presents a value of 514.4660, 515.5716, pointing L=6 as the respond. Considering that GCV gives a value higher for 1 we could take into account this criterion. 
+
+
+```{r}
+fat.cen <- scale(fat,center=TRUE,scale=FALSE)
+beta.est <- vector(mode="list",length=7)
+sigma2.est <- vector(mode="numeric",length=7)
+gcv.est <- vector(mode="numeric",length=7)
+bic.est <- vector(mode="numeric",length=7)
+bs.fit <- lm(fat.cen~fpcss.abmeat[,1]-1)
+bs.est <- summary(bs.fit)$coef
+beta.est[[1]] <- bs.est[1,1] * fpcs.abmeat[1]
+sigma2.est[1] <- summary(bs.fit)$sigma^2
+gcv.est[1] <- 215 / (215 - 1) * sigma2.est[1]
+for (l in 2 : 7){
+  bs.fit <- lm(fat.cen~fpcss.abmeat[,1:l]-1)
+  bs.est <- summary(bs.fit)$coef
+  beta.est[[l]] <- beta.est[[l-1]] + bs.est[l,1] * fpcs.abmeat[l]
+  sigma2.est[l] <- summary(bs.fit)$sigma^2
+  gcv.est[l] <- 215 / (215 - l) * sigma2.est[l]
+  bic.est[l] <- 215 * log(sigma2.est[l]) + l * log(215) 
+}
+```
+
+
+```{r}
+oldw <- getOption("warn")
+options(warn=-1)
+par(mfrow=c(1,2))
+plot(1:7,gcv.est,col="deepskyblue2",pch=19,main="Values of GCV")
+plot(1:7,bic.est,col="deepskyblue2",pch=19,main="Values of BIC")
+```
+
+Finally, we present the fitted regression with the use of functional principal components. As we can see, all the FPCS are presented as signifiactive with P-value lower than 0.05. and 1 to 6 even lower than 0.001. Additionally, we reach a $R^2$ of 0.9447 and an adjusted $R^2$ of 0.9428, the higher of the methods. 
+
+
+```{r}
+bs.fit <- lm(fat.cen~fpcss.abmeat[,1:7]-1)
+bs.est <- summary(bs.fit)$coef
+var.bs <- bs.est[,2]^2
+var.beta.est <- var.bs[1] * fpcs.abmeat[1]^2
+for (l in 2 : 7){
+  var.beta.est <- var.beta.est + var.bs[l] * fpcs.abmeat[l]^2
+}
+se.beta.est <- sqrt(var.beta.est)
+options(warn=oldw)
+summary(bs.fit)
+```
+The same as for the last two methods we present a confidence band with the 95%. As we can see there are some differences from the last methods consdiering tha the peaks and the valleys reach more extreme values, but we do see the same trend and the same number of local minimums and maximums.
+
+
+
+By taking a look at the residuals we see that their behavior is more appropiated since the points are distributed in a more equal way along the x-axis, but we still see some trends and a slope for the samples inbetwen the 50 and the 100.
+```{r}
+plot(1:215,residuals(bs.fit),col="deepskyblue2",pch=19,main="Residuals with FPCs")
+```
+
+
+```{r}
+plot(1:215,residuals(bs.fit),col="deepskyblue2",pch=19,main="Residuals with FPCs")
+pred.fpcs <- as.vector(bs.fit$fitted.values) + mean(fat)
+preds <- cbind(pred.ols.2,pred.pen.2,pred.fpcs)
+colnames(preds) <- c("Basis","Roughness penalty","FPCs")
+pairs(preds,col="deepskyblue2",pch=19)
+```
+
+In this case we have a dependent or response variable which is the content of fat of the meat whose value is to be predicted or approximated on the basis of a set of data functional in nature.In order to adress this problem, we have presented three methodologies: the estimation through a basis expansion, estimation with a roughness penalty, and functional principal components. The absorbance data which is presented as the functional component of the problem has a domain which is not time, considering this we have used the Spline Basis instead of the Fourier Basis to smooth the data and we have set K=7, considering that appear to be the best K based on GCV. If we compare the three methods of estimation under this parameter of smoothing we can see that their relation is quite linear and present the same outliers at the end with a few samples which content of fat is higher than for the rest. Furthermore, we can see some differences between the coefficients of determination, which its adjusted version presented a higher value for the functional principal components. Taking into account this, and relying on the fact that the K loses importance, could be the best method to perfomed considering that gives some good insight about the grouping and outliers of the data as well as good measures of how well the absorbance will explain the content of fat of the meat.
+
+
